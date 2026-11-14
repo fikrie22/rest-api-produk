@@ -62,6 +62,31 @@ app.delete('/api/products/:id', (req, res) => {
     });
 });
 
+// 4. PUT: Update data produk berdasarkan ID
+app.put('/api/products/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const { name, price, stock } = req.body;
+    const index = products.findIndex(p => p.id === id);
+
+    if (index === -1) {
+        return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
+    }
+
+    // Perbarui data produk
+    products[index] = {
+        id: id,
+        name: name !== undefined ? name : products[index].name,
+        price: price !== undefined ? Number(price) : products[index].price,
+        stock: stock !== undefined ? Number(stock) : products[index].stock
+    };
+
+    res.json({
+        success: true,
+        message: 'Produk berhasil diperbarui',
+        data: products[index]
+    });
+});
+
 // Jalankan Server
 app.listen(PORT, () => {
     console.log(`Server REST API berjalan di http://localhost:${PORT}`);
