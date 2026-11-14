@@ -12,6 +12,10 @@
         button { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-add { background: #27ae60; color: white; }
         .btn-add:hover { background: #219150; }
+        .btn-update { background: #2980b9; color: white; }
+        .btn-cancel { background: #7f8c8d; color: white; display: none; }
+        .btn-edit { background: #f39c12; color: white; padding: 6px 12px; margin-right: 4px; }
+        .btn-edit:hover { background: #d68910; }
         .btn-delete { background: #e74c3c; color: white; padding: 6px 12px; }
         .btn-delete:hover { background: #c0392b; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -23,12 +27,14 @@
 
     <h1>Daftar Produk</h1>
 
-    <!-- Form Tambah Produk -->
+    <!-- Form Tambah / Edit Produk -->
     <form id="product-form" class="form-group">
+        <input type="hidden" id="product-id">
         <input type="text" id="name" placeholder="Nama Produk" required>
         <input type="number" id="price" placeholder="Harga (Rp)" required>
         <input type="number" id="stock" placeholder="Stok" required>
-        <button type="submit" class="btn-add">Tambah</button>
+        <button type="submit" id="submit-btn" class="btn-add">Tambah</button>
+        <button type="button" id="cancel-btn" class="btn-cancel" onclick="resetForm()">Batal</button>
     </form>
 
     <!-- Tabel Data Produk -->
@@ -42,17 +48,17 @@
                 <th>Aksi</th>
             </tr>
         </thead>
-        <tbody id="product-list">
-            <!-- Data dari API akan dimuat di sini -->
-        </tbody>
+        <tbody id="product-list"></tbody>
     </table>
 
     <script>
         const API_URL = 'http://localhost:3000/api/products';
         const productList = document.getElementById('product-list');
         const productForm = document.getElementById('product-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
 
-        // 1. Fungsi Mengambil & Menampilkan Data (GET)
+        // 1. Ambil & Tampilkan Data (GET)
         async function fetchProducts() {
             try {
                 const response = await fetch(API_URL);
@@ -67,6 +73,7 @@
                             <td>Rp ${product.price.toLocaleString('id-ID')}</td>
                             <td>${product.stock}</td>
                             <td>
+                                <button class="btn-edit" onclick="editMode(${product.id}, '${product.name.replace(/'/g, "\\'")}', ${product.price}, ${product.stock})">Edit</button>
                                 <button class="btn-delete" onclick="deleteProduct(${product.id})">Hapus</button>
                             </td>
                         </tr>
@@ -74,39 +81,68 @@
                     productList.innerHTML += row;
                 });
             } catch (error) {
-                console.error('Gagal mengambil data:', error);
                 productList.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Gagal terhubung ke server API. Pastikan server.js berjalan!</td></tr>';
             }
         }
 
-        // 2. Fungsi Menambah Produk (POST)
+        // 2. Masuk ke Mode Edit
+        function editMode(id, name, price, stock) {
+            document.getElementById('product-id').value = id;
+            document.getElementById('name').value = name;
+            document.getElementById('price').value = price;
+            document.getElementById('stock').value = stock;
+
+            submitBtn.textContent = 'Simpan Perubahan';
+            submitBtn.className = 'btn-update';
+            cancelBtn.style.display = 'inline-block';
+        }
+
+        // 3. Reset Form ke Mode Tambah
+        function resetForm() {
+            productForm.reset();
+            document.getElementById('product-id').value = '';
+            submitBtn.textContent = 'Tambah';
+            submitBtn.className = 'btn-add';
+            cancelBtn.style.display = 'none';
+        }
+
+        // 4. Proses Simpan (POST untuk baru, PUT untuk update)
         productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const newProduct = {
+            const id = document.getElementById('product-id').value;
+            const payload = {
                 name: document.getElementById('name').value,
                 price: document.getElementById('price').value,
                 stock: document.getElementById('stock').value
             };
 
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newProduct)
-            });
+            if (id) {
+                // Update Data (PUT)
+                await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                // Tambah Data Baru (POST)
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
 
-            productForm.reset();
-            fetchProducts(); // Muat ulang tabel
+            resetForm();
+            fetchProducts();
         });
 
-        // 3. Fungsi Menghapus Produk (DELETE)
+        // 5. Hapus Produk (DELETE)
         async function deleteProduct(id) {
             if (!confirm('Yakin ingin menghapus produk ini?')) return;
-            
             await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            fetchProducts(); // Muat ulang tabel
+            fetchProducts();
         }
 
-        // Jalankan saat halaman pertama kali dibuka
         fetchProducts();
     </script>
 
